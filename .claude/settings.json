@@ -1,0 +1,27 @@
+{
+  "disabledMcpjsonServers": ["claude.ai PubMed", "pubmed", "PubMed"],
+  "hooks": {
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\jonat\\Desktop\\SUPER_POWERS_PROJECT\\hooks\\error-logger.py\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\jonat\\Desktop\\SUPER_POWERS_PROJECT\\hooks\\command-validator.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

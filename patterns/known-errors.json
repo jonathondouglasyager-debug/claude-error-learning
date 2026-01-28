@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "description": "Known error patterns for prevention. Curated from errors.jsonl.",
+  "patterns": [
+    {
+      "id": "windows_bash_chaining",
+      "name": "Bash && chaining on Windows",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "contains",
+        "pattern": "&&"
+      },
+      "message": "BLOCKED: Use ';' or run commands separately on Windows. '&&' is bash syntax, not PowerShell.",
+      "suggestion": "cmd1; cmd2",
+      "added": "2026-01-28",
+      "occurrences": 0
+    },
+    {
+      "id": "bash_rm_command",
+      "name": "Using rm instead of Remove-Item",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^rm\\s+"
+      },
+      "message": "BLOCKED: Use 'Remove-Item' instead of 'rm' on Windows PowerShell.",
+      "suggestion": "Remove-Item \"path\"",
+      "added": "2026-01-28",
+      "occurrences": 0
+    },
+    {
+      "id": "bash_del_command",
+      "name": "Using del without quotes",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^del\\s+[^\"']"
+      },
+      "message": "BLOCKED: Use 'Remove-Item \"path\"' instead of 'del' on Windows.",
+      "suggestion": "Remove-Item \"path\"",
+      "added": "2026-01-28",
+      "occurrences": 0
+    },
+    {
+      "id": "bash_ls_flags",
+      "name": "Using ls with Unix flags",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^ls\\s+-[a-zA-Z]"
+      },
+      "message": "BLOCKED: Use 'Get-ChildItem' or 'dir' instead of 'ls -flags' on Windows.",
+      "suggestion": "Get-ChildItem or dir",
+      "added": "2026-01-28",
+      "occurrences": 0
+    }
+  ]
+}
