@@ -22,6 +22,16 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\jonat\\Desktop\\SUPER_POWERS_PROJECT\\hooks\\error-curator.py\" --auto"
+          }
+        ]
+      }
     ]
   }
 }

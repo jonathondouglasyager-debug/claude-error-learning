@@ -1,6 +1,6 @@
 # Claude Error Learning System
 
-Automated error detection and prevention for Claude Code via hooks.
+Automated error detection, learning, and prevention for Claude Code via hooks.
 
 ## Problem
 
@@ -8,26 +8,32 @@ Claude Code makes mistakes (wrong commands, syntax errors) and iterates until th
 
 ## Solution
 
-Two Python hooks that automatically:
-1. **Detect & Log** - Capture all tool failures to `data/errors.jsonl`
-2. **Prevent** - Block known-bad command patterns before execution
+A complete feedback loop that:
+1. **Detects** - Captures all tool failures to `data/errors.jsonl`
+2. **Learns** - Auto-curates recurring errors into prevention patterns
+3. **Prevents** - Blocks known-bad commands before execution
 
-## How It Works
+## The Complete Loop
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    PREVENTION LAYER                      │
-│  PreToolUse Hook checks commands BEFORE execution        │
-│  Blocks known-bad patterns with helpful message          │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│                    DETECTION LAYER                       │
-│  PostToolUseFailure Hook captures ALL failures           │
-│  Appends to errors.jsonl for pattern discovery           │
-└─────────────────────────────────────────────────────────┘
+Claude uses wrong command
+        ↓
+Command FAILS
+        ↓
+[PostToolUseFailure] error-logger.py → data/errors.jsonl
+        ↓
+Session ends
+        ↓
+[SessionEnd] error-curator.py → patterns/known-errors.json
+        ↓
+Next session, Claude tries same mistake
+        ↓
+[PreToolUse] command-validator.py → BLOCKED
+        ↓
+Claude uses correct syntax immediately
 ```
+
+**Result:** Errors are caught once, learned automatically, prevented forever.
 
 ## Installation
 
@@ -35,37 +41,60 @@ Two Python hooks that automatically:
 2. Copy `.claude/settings.json` to your project (or merge with existing)
 3. Update the paths in settings.json to point to your clone location
 
-Or copy hooks globally:
-```json
-// ~/.claude/settings.json
-{
-  "hooks": {
-    "PostToolUseFailure": [...],
-    "PreToolUse": [...]
-  }
-}
-```
+Or for global installation, merge hooks into `~/.claude/settings.json`.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `hooks/error-logger.py` | Captures all tool failures to JSONL |
+| `hooks/error-curator.py` | Auto-promotes recurring errors to patterns |
 | `hooks/command-validator.py` | Blocks known-bad commands before execution |
 | `patterns/known-errors.json` | Curated patterns for prevention |
-| `data/errors.jsonl` | Raw error log (append-only) |
+| `data/errors.jsonl` | Raw error log (local, not tracked) |
 | `.claude/settings.json` | Hook configuration |
 
-## Initial Patterns
+## Hooks Configuration
 
-| Pattern | Blocks |
-|---------|--------|
-| `windows_bash_chaining` | Commands containing `&&` |
-| `bash_rm_command` | Commands starting with `rm ` |
-| `bash_del_command` | Commands starting with `del ` (unquoted) |
-| `bash_ls_flags` | Commands starting with `ls -` |
+```json
+{
+  "hooks": {
+    "PostToolUseFailure": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "python path/to/error-logger.py" }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "python path/to/command-validator.py" }] }
+    ],
+    "SessionEnd": [
+      { "hooks": [{ "type": "command", "command": "python path/to/error-curator.py --auto" }] }
+    ]
+  }
+}
+```
 
-## Adding Patterns
+## Initial Patterns (Windows/PowerShell)
+
+| Pattern | Blocks | Suggestion |
+|---------|--------|------------|
+| `windows_bash_chaining` | `&&` in commands | Use `;` or run separately |
+| `bash_rm_command` | `rm` command | Use `Remove-Item` |
+| `bash_del_command` | `del` unquoted | Use `Remove-Item "path"` |
+| `bash_ls_flags` | `ls -flags` | Use `Get-ChildItem` |
+
+## Manual Curation
+
+```bash
+# Review all potential patterns
+python hooks/error-curator.py --review
+
+# Add all new patterns
+python hooks/error-curator.py --add-all
+
+# Add specific pattern
+python hooks/error-curator.py --add <signature>
+```
+
+## Adding Custom Patterns
 
 Edit `patterns/known-errors.json`:
 
@@ -76,7 +105,7 @@ Edit `patterns/known-errors.json`:
   "category": "syntax_error",
   "tool": "Bash",
   "match": {
-    "type": "contains",  // or "regex" or "exact"
+    "type": "contains",
     "pattern": "pattern to match"
   },
   "message": "BLOCKED: Explanation shown to Claude",
@@ -84,16 +113,28 @@ Edit `patterns/known-errors.json`:
 }
 ```
 
+Match types: `contains`, `regex`, `exact`
+
 ## Token Savings
 
-Without prevention: ~210-610 tokens per error (attempt + full error + reasoning + retry)
+| Scenario | Tokens |
+|----------|--------|
+| Without prevention | ~210-610 per error |
+| With prevention | ~60 per error |
+| **Savings** | **70-90%** |
 
-With prevention: ~60 tokens (block message + retry)
+## How It Works
 
-**Net effect:** 70-90% token reduction per prevented error.
+- **error-logger.py**: Receives JSON from Claude Code on tool failure, extracts command and error, appends to JSONL
+- **error-curator.py**: Analyzes error log, groups by command signature, promotes patterns with 2+ occurrences
+- **command-validator.py**: Loads patterns, checks incoming commands, blocks matches with helpful message
 
 ## Future Work
 
-- Error curator agent to auto-propose patterns
-- Outcome-based pattern scoring
-- SessionStart context injection for proactive prevention
+- Outcome-based pattern scoring (track which patterns actually help)
+- SessionStart context injection (proactive prevention)
+- Cross-platform pattern sets (Linux, macOS)
+
+## License
+
+MIT

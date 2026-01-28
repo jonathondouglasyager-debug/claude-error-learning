@@ -57,6 +57,21 @@
       "suggestion": "Get-ChildItem or dir",
       "added": "2026-01-28",
       "occurrences": 0
+    },
+    {
+      "id": "cmd_\"C:\\Program",
+      "name": "Cmd \"C:\\Program",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "contains",
+        "pattern": "\"C:\\Program"
+      },
+      "message": "BLOCKED: This command pattern has failed 2 times. Review and fix.",
+      "suggestion": "Check error log for details",
+      "added": "2026-01-28",
+      "occurrences": 2,
+      "auto_curated": true
     }
   ]
 }
