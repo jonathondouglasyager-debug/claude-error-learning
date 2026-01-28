@@ -18,8 +18,8 @@ venv/
 Thumbs.db
 
 # Project-specific
-# Keep data/errors.jsonl tracked but ignore future large logs
-# data/*.log
+# Error log is local data, not tracked
+data/errors.jsonl
 
 # User-specific Claude settings (permissions, etc.)
 .claude/settings.local.json
