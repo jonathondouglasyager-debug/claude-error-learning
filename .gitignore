@@ -18,8 +18,9 @@ venv/
 Thumbs.db
 
 # Project-specific
-# Error log is local data, not tracked
+# Error log and curation log are local data, not tracked
 data/errors.jsonl
+data/curated.log
 
 # User-specific Claude settings (permissions, etc.)
 .claude/settings.local.json
