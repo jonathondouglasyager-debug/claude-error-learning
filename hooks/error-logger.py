@@ -2,7 +2,7 @@
 """
 Error Logger Hook for Claude Code
 Triggered by: PostToolUseFailure
-Appends error records to data/errors.jsonl
+Appends error records to data/errors.jsonl with awaiting_fix flag for fix-tracker pairing.
 """
 
 import json
@@ -14,6 +14,16 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR / "data"
 ERRORS_FILE = DATA_DIR / "errors.jsonl"
+CONFIG_FILE = BASE_DIR / "config.json"
+
+
+def load_config():
+    """Load plugin configuration."""
+    try:
+        with CONFIG_FILE.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"track_fixes": True}
 
 
 def generate_error_id():
@@ -54,15 +64,21 @@ def main():
         else:
             error_text = str(tool_response)
 
+        # Load config
+        config = load_config()
+        track_fixes = config.get("track_fixes", True)
+
         # Build error record
         error_record = {
             "id": generate_error_id(),
+            "type": "error",
             "timestamp": datetime.now().isoformat() + "Z",
             "session_id": session_id,
             "category": categorize_error(error_text),
             "tool": tool_name,
             "input": tool_input,
             "error": error_text[:2000],  # Truncate very long errors
+            "awaiting_fix": track_fixes,  # Signal fix-tracker to watch for fix
             "context": {
                 "working_dir": project_dir,
                 "project": Path(project_dir).name if project_dir else "unknown"

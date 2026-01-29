@@ -1,0 +1,10 @@
+{
+  "enabled_packs": [
+    "windows",
+    "common"
+  ],
+  "auto_curate": true,
+  "curate_threshold": 2,
+  "show_confidence": true,
+  "track_fixes": true
+}

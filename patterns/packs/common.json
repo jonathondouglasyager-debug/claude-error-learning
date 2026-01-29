@@ -1,0 +1,77 @@
+{
+  "pack": "common",
+  "description": "Universal patterns that help everyone. Ships enabled by default.",
+  "version": 1,
+  "patterns": [
+    {
+      "id": "use_read_not_cat",
+      "name": "Use Read tool instead of cat",
+      "category": "tool_preference",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^cat\\s+"
+      },
+      "message": "BLOCKED: Use the Read tool instead of 'cat' for reading files.",
+      "learned_fix": "Read tool with file_path parameter",
+      "confidence": 100,
+      "source": "builtin"
+    },
+    {
+      "id": "use_grep_not_grep",
+      "name": "Use Grep tool instead of grep command",
+      "category": "tool_preference",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^grep\\s+"
+      },
+      "message": "BLOCKED: Use the Grep tool instead of 'grep' command.",
+      "learned_fix": "Grep tool with pattern parameter",
+      "confidence": 100,
+      "source": "builtin"
+    },
+    {
+      "id": "use_glob_not_find",
+      "name": "Use Glob tool instead of find command",
+      "category": "tool_preference",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^find\\s+"
+      },
+      "message": "BLOCKED: Use the Glob tool instead of 'find' command.",
+      "learned_fix": "Glob tool with pattern parameter",
+      "confidence": 100,
+      "source": "builtin"
+    },
+    {
+      "id": "use_write_not_echo",
+      "name": "Use Write tool instead of echo redirect",
+      "category": "tool_preference",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^echo\\s+.*>"
+      },
+      "message": "BLOCKED: Use the Write tool instead of 'echo >' for creating files.",
+      "learned_fix": "Write tool with file_path and content parameters",
+      "confidence": 100,
+      "source": "builtin"
+    },
+    {
+      "id": "use_edit_not_sed",
+      "name": "Use Edit tool instead of sed",
+      "category": "tool_preference",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^sed\\s+"
+      },
+      "message": "BLOCKED: Use the Edit tool instead of 'sed' for editing files.",
+      "learned_fix": "Edit tool with old_string and new_string parameters",
+      "confidence": 100,
+      "source": "builtin"
+    }
+  ]
+}

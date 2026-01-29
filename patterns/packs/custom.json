@@ -1,0 +1,6 @@
+{
+  "pack": "custom",
+  "description": "User-defined patterns. Add via /error-learning add command.",
+  "version": 1,
+  "patterns": []
+}

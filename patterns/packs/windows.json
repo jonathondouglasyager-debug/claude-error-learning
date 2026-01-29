@@ -1,0 +1,105 @@
+{
+  "pack": "windows",
+  "description": "Windows/PowerShell patterns. Enable for Windows environments.",
+  "version": 1,
+  "patterns": [
+    {
+      "id": "windows_bash_chaining",
+      "name": "Bash && chaining on Windows",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "contains",
+        "pattern": "&&"
+      },
+      "message": "BLOCKED: '&&' is bash syntax, not PowerShell.",
+      "learned_fix": "Use ';' to chain commands: cmd1; cmd2",
+      "confidence": 100,
+      "source": "builtin"
+    },
+    {
+      "id": "bash_rm_command",
+      "name": "Using rm instead of Remove-Item",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^rm\\s+"
+      },
+      "message": "BLOCKED: 'rm' is not a PowerShell command.",
+      "learned_fix": "Use Remove-Item \"path\" instead",
+      "confidence": 100,
+      "source": "builtin"
+    },
+    {
+      "id": "bash_del_command",
+      "name": "Using del without quotes",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^del\\s+[^\"']"
+      },
+      "message": "BLOCKED: Use quoted paths with Remove-Item.",
+      "learned_fix": "Use Remove-Item \"path\" instead",
+      "confidence": 100,
+      "source": "builtin"
+    },
+    {
+      "id": "bash_ls_flags",
+      "name": "Using ls with Unix flags",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^ls\\s+-[a-zA-Z]"
+      },
+      "message": "BLOCKED: 'ls -flags' is bash syntax.",
+      "learned_fix": "Use Get-ChildItem or dir instead",
+      "confidence": 100,
+      "source": "builtin"
+    },
+    {
+      "id": "bash_touch_command",
+      "name": "Using touch on Windows",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^touch\\s+"
+      },
+      "message": "BLOCKED: 'touch' is not a PowerShell command.",
+      "learned_fix": "Use New-Item \"path\" -ItemType File",
+      "confidence": 100,
+      "source": "builtin"
+    },
+    {
+      "id": "bash_cp_command",
+      "name": "Using cp instead of Copy-Item",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^cp\\s+"
+      },
+      "message": "BLOCKED: 'cp' is bash syntax.",
+      "learned_fix": "Use Copy-Item \"source\" \"dest\" instead",
+      "confidence": 100,
+      "source": "builtin"
+    },
+    {
+      "id": "bash_mv_command",
+      "name": "Using mv instead of Move-Item",
+      "category": "syntax_error",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^mv\\s+"
+      },
+      "message": "BLOCKED: 'mv' is bash syntax.",
+      "learned_fix": "Use Move-Item \"source\" \"dest\" instead",
+      "confidence": 100,
+      "source": "builtin"
+    }
+  ]
+}

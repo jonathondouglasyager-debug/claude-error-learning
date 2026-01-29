@@ -1,0 +1,21 @@
+{
+  "pack": "linux",
+  "description": "Linux/bash patterns. Enable for Linux environments.",
+  "version": 1,
+  "patterns": [
+    {
+      "id": "linux_sudo_in_script",
+      "name": "Avoid sudo in automated scripts",
+      "category": "security",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^sudo\\s+"
+      },
+      "message": "WARNING: sudo in automated scripts may cause issues. Consider if elevated permissions are truly needed.",
+      "learned_fix": "Run script with appropriate permissions or use capability-based access",
+      "confidence": 50,
+      "source": "builtin"
+    }
+  ]
+}

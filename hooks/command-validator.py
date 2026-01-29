@@ -2,7 +2,7 @@
 """
 Command Validator Hook for Claude Code
 Triggered by: PreToolUse (Bash only)
-Blocks commands matching known error patterns
+Blocks commands matching known error patterns and shows learned fixes.
 """
 
 import json
@@ -12,17 +12,44 @@ from pathlib import Path
 
 # Base directory (where this script lives)
 BASE_DIR = Path(__file__).parent.parent
-PATTERNS_FILE = BASE_DIR / "patterns" / "known-errors.json"
+PATTERNS_DIR = BASE_DIR / "patterns"
+ACTIVE_FILE = PATTERNS_DIR / "active.json"
+LEGACY_FILE = PATTERNS_DIR / "known-errors.json"  # Fallback for migration
+CONFIG_FILE = BASE_DIR / "config.json"
+
+
+def load_config():
+    """Load plugin configuration."""
+    try:
+        with CONFIG_FILE.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"show_confidence": True}
 
 
 def load_patterns():
-    """Load known error patterns from JSON file."""
-    try:
-        with PATTERNS_FILE.open("r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data.get("patterns", [])
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
+    """Load active patterns from merged active.json or fallback to legacy file."""
+    # Try active.json first (new pattern packs system)
+    if ACTIVE_FILE.exists():
+        try:
+            with ACTIVE_FILE.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+                patterns = data.get("patterns", [])
+                if patterns:
+                    return patterns
+        except json.JSONDecodeError:
+            pass
+
+    # Fallback to legacy known-errors.json
+    if LEGACY_FILE.exists():
+        try:
+            with LEGACY_FILE.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("patterns", [])
+        except json.JSONDecodeError:
+            pass
+
+    return []
 
 
 def check_pattern(command: str, pattern: dict) -> bool:
@@ -47,8 +74,29 @@ def check_pattern(command: str, pattern: dict) -> bool:
     return False
 
 
+def format_block_message(pattern: dict, config: dict) -> str:
+    """Format the block message with learned fix information."""
+    message = pattern.get("message", "Command blocked by known error pattern.")
+    learned_fix = pattern.get("learned_fix", pattern.get("suggestion", ""))
+    confidence = pattern.get("confidence", 0)
+    show_confidence = config.get("show_confidence", True)
+
+    output = message
+
+    if learned_fix:
+        if show_confidence and confidence > 0:
+            output += f"\nLEARNED FIX ({confidence}% confidence): {learned_fix}"
+        else:
+            output += f"\nLEARNED FIX: {learned_fix}"
+
+    return output
+
+
 def main():
     try:
+        # Load config
+        config = load_config()
+
         # Read hook input from stdin
         input_data = json.load(sys.stdin)
 
@@ -67,13 +115,10 @@ def main():
         for pattern in patterns:
             if check_pattern(command, pattern):
                 # Found a match - block the command
-                message = pattern.get("message", "Command blocked by known error pattern.")
-                suggestion = pattern.get("suggestion", "")
+                message = format_block_message(pattern, config)
 
                 # Write to stderr (Claude will see this)
-                print(f"{message}", file=sys.stderr)
-                if suggestion:
-                    print(f"Suggestion: {suggestion}", file=sys.stderr)
+                print(message, file=sys.stderr)
 
                 # Exit 2 = block command and show stderr to Claude
                 sys.exit(2)
@@ -81,7 +126,7 @@ def main():
         # No patterns matched - allow command
         sys.exit(0)
 
-    except Exception as e:
+    except Exception:
         # On error, allow command (fail open, don't block Claude)
         sys.exit(0)
 

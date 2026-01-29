@@ -1,5 +1,14 @@
 {
-  "disabledMcpjsonServers": ["claude.ai PubMed", "pubmed", "PubMed"],
+  "permissions": {
+    "deny": [
+      "mcp__claude_ai_PubMed__*"
+    ]
+  },
+  "disabledMcpjsonServers": [
+    "claude.ai PubMed",
+    "pubmed",
+    "PubMed"
+  ],
   "hooks": {
     "PostToolUseFailure": [
       {
@@ -8,6 +17,17 @@
           {
             "type": "command",
             "command": "python \"C:\\Users\\jonat\\Desktop\\SUPER_POWERS_PROJECT\\hooks\\error-logger.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\jonat\\Desktop\\SUPER_POWERS_PROJECT\\hooks\\fix-tracker.py\""
           }
         ]
       }
@@ -33,5 +53,13 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true
   }
 }

@@ -1,0 +1,6 @@
+{
+  "pack": "learned",
+  "description": "Auto-learned patterns from actual errors. Populated by error-curator.py.",
+  "version": 1,
+  "patterns": []
+}
