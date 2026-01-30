@@ -270,10 +270,26 @@ def generate_learned_pattern(signature, data):
         },
     }
 
-    template = templates.get(signature, {
-        "match": {"type": "contains", "pattern": sample_command.split()[0] if sample_command else ""},
-        "message": f"BLOCKED: This command pattern has failed {error_count} times."
-    })
+    # For unknown signatures (cmd_*), be more conservative
+    if signature not in templates:
+        # Only create patterns for specific problematic arguments, not generic commands
+        # Skip if the pattern would just match a common command like "python", "node", etc.
+        first_word = sample_command.split()[0] if sample_command else ""
+        generic_commands = {"python", "node", "npm", "git", "pip", "powershell", "cmd"}
+
+        if first_word.lower() in generic_commands:
+            # For generic commands, require the full command to match (much more specific)
+            template = {
+                "match": {"type": "exact", "pattern": sample_command.strip()},
+                "message": f"BLOCKED: This exact command failed previously."
+            }
+        else:
+            template = {
+                "match": {"type": "contains", "pattern": first_word},
+                "message": f"BLOCKED: This command pattern has failed {error_count} times."
+            }
+    else:
+        template = templates[signature]
 
     # Determine learned fix
     learned_fix = sample_fix if sample_fix else "Check error log for alternatives"

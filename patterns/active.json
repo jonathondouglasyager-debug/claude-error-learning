@@ -1,9 +1,11 @@
 {
-  "description": "Merged active patterns",
-  "generated_at": "2026-01-29T14:10:36.757326",
+  "description": "Merged active patterns from enabled packs. Auto-generated - do not edit directly.",
+  "generated_at": "2026-01-29T18:49:58.916144",
   "enabled_packs": [
     "windows",
-    "common"
+    "common",
+    "learned",
+    "custom"
   ],
   "patterns": [
     {
@@ -173,6 +175,24 @@
       "learned_fix": "Edit tool with old_string and new_string parameters",
       "confidence": 100,
       "source": "builtin"
+    },
+    {
+      "id": "cmd_python",
+      "name": "Cmd Python",
+      "category": "learned",
+      "tool": "Bash",
+      "match": {
+        "type": "exact",
+        "pattern": "python --nonexistent-flag"
+      },
+      "message": "BLOCKED: This exact command failed previously.",
+      "learned_fix": "python --version",
+      "confidence": 50,
+      "error_count": 2,
+      "fix_count": 1,
+      "first_seen": "2026-01-29",
+      "last_seen": "2026-01-29",
+      "source": "auto_learned"
     }
   ]
 }
