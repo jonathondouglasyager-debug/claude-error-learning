@@ -24,6 +24,21 @@ ERROR OCCURS                    FIX APPLIED                    FUTURE SESSIONS
 
 ---
 
+## Smart Detection (v2)
+
+The curator analyzes **error messages** to create precise blocking rules:
+
+| Error Type | Signature | Blocked | Example |
+|------------|-----------|---------|---------|
+| Bad flag | `bad_flag_ls_--xyz` | Only that flag | `ls --xyz` blocked, `ls -la` works |
+| Command not found | `cmd_not_found_choco` | Only that command | `choco` blocked |
+| Path not found | `path_not_found_*` | **SKIPPED** | Won't learn (environmental) |
+| Permission denied | `permission_*` | **SKIPPED** | Won't learn (environmental) |
+
+This prevents false positives like blocking all `ls` commands when only one bad flag failed.
+
+---
+
 ## Plugin Architecture
 
 | Component | File | Hook | Purpose |
@@ -107,6 +122,16 @@ python hooks/error-curator.py --disable linux   # Disable a pack
 | View error log | `Read data/errors.jsonl` |
 | View curation log | `Read data/curated.log` |
 
+### Allowlist Commands
+
+| Action | Command |
+|--------|---------|
+| **List allowlist** | `python hooks/error-curator.py --allowlist` |
+| **Allow prefix** | `python hooks/error-curator.py --allow "ls "` |
+| **Allow exact** | `python hooks/error-curator.py --allow-exact "git status"` |
+| **Allow regex** | `python hooks/error-curator.py --allow-regex "^npm (run|test)"` |
+| **Remove** | `python hooks/error-curator.py --unallow "ls "` |
+
 ---
 
 ## Key Files
@@ -116,6 +141,7 @@ python hooks/error-curator.py --disable linux   # Disable a pack
 | `plugin.json` | Plugin manifest |
 | `config.json` | User settings |
 | `patterns/active.json` | Merged active patterns |
+| `patterns/allowlist.json` | Commands that bypass blocking |
 | `patterns/packs/*.json` | Individual pattern packs |
 | `data/errors.jsonl` | Error + fix log |
 | `data/curated.log` | Curation activity |
@@ -155,19 +181,35 @@ python hooks/error-curator.py --disable linux   # Disable a pack
 
 ```json
 {
-  "id": "bash_and_chaining",
-  "name": "Bash And Chaining",
+  "id": "bad_flag_ls_--invalid-flag",
+  "name": "Bad flag: ls --invalid-flag",
   "category": "learned",
   "tool": "Bash",
-  "match": {"type": "contains", "pattern": "&&"},
-  "message": "BLOCKED: '&&' doesn't work here.",
-  "learned_fix": "Use \"cmd1; cmd2\" instead",
-  "confidence": 87,
-  "error_count": 15,
-  "fix_count": 13,
+  "match": {"type": "regex", "pattern": "^ls\\s+.*\\-\\-invalid\\-flag"},
+  "message": "BLOCKED: '--invalid-flag' is not a valid option for ls.",
+  "learned_fix": "Remove or replace '--invalid-flag'",
+  "confidence": 0,
+  "error_count": 2,
+  "fix_count": 0,
   "source": "auto_learned"
 }
 ```
+
+## Allowlist Pattern Format
+
+```json
+{
+  "description": "Commands that bypass blocking",
+  "version": 1,
+  "patterns": [
+    {"type": "prefix", "pattern": "ls "},
+    {"type": "exact", "pattern": "git status"},
+    {"type": "regex", "pattern": "^npm (run|test|install)"}
+  ]
+}
+```
+
+Match types: `prefix`, `exact`, `contains`, `regex`
 
 ---
 
@@ -196,3 +238,4 @@ Publish to Claude Code plugin registry for easy installation.
 
 *Created: 2026-01-28*
 *Updated: 2026-01-29 - Converted to plugin format with fix tracking and pattern packs*
+*Updated: 2026-01-31 - Smart error-message detection, allowlist override, environmental error skipping*

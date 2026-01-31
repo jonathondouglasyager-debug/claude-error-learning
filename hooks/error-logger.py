@@ -54,15 +54,16 @@ def main():
         # Extract fields from Claude Code hook payload
         tool_name = input_data.get("tool_name", "unknown")
         tool_input = input_data.get("tool_input", {})
-        tool_response = input_data.get("tool_response", "")
+        # Claude Code sends error in "error" field for PostToolUseFailure
+        error_text = input_data.get("error") or input_data.get("tool_response") or ""
         session_id = input_data.get("session_id", "unknown")
-        project_dir = input_data.get("project_dir", "")
+        project_dir = input_data.get("cwd", input_data.get("project_dir", ""))
 
-        # Convert tool_response to string if it's not already
-        if isinstance(tool_response, dict):
-            error_text = json.dumps(tool_response)
+        # Convert error_text to string if it's not already
+        if isinstance(error_text, dict):
+            error_text = json.dumps(error_text)
         else:
-            error_text = str(tool_response)
+            error_text = str(error_text)
 
         # Load config
         config = load_config()

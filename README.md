@@ -21,6 +21,19 @@ errors.jsonl                 errors.jsonl                   learned.json
 
 **Result:** Claude makes mistake once → learns the fix → never makes that mistake again.
 
+## Smart Detection
+
+The plugin analyzes **error messages**, not just command patterns, to create precise blocking rules:
+
+| Error Type | What Gets Blocked | Example |
+|------------|-------------------|---------|
+| Bad flag `--xyz` | Only that specific flag | `ls --invalid` blocked, `ls -la` works |
+| Command not found | Only that command | `choco` blocked, other commands work |
+| Path not found | **Nothing** (environmental) | Won't learn from missing files |
+| Permission denied | **Nothing** (environmental) | Won't learn from access errors |
+
+This prevents false positives like blocking all `ls` commands just because one bad flag failed.
+
 ## Installation
 
 ### Step 1: Clone the Repository
@@ -197,6 +210,29 @@ python hooks/error-curator.py --enable windows  # Enable a pack
 python hooks/error-curator.py --disable linux   # Disable a pack
 ```
 
+## Allowlist (Override Blocks)
+
+If a command gets incorrectly blocked, add it to the allowlist to bypass all learned patterns:
+
+```bash
+# List current allowlist
+python hooks/error-curator.py --allowlist
+
+# Allow by prefix (matches "ls -la", "ls foo", etc.)
+python hooks/error-curator.py --allow "ls "
+
+# Allow exact command only
+python hooks/error-curator.py --allow-exact "git status"
+
+# Allow by regex pattern
+python hooks/error-curator.py --allow-regex "^npm (run|test|install)"
+
+# Remove from allowlist
+python hooks/error-curator.py --unallow "ls "
+```
+
+The allowlist is checked **before** blocking patterns, so it acts as an override.
+
 **Slash command:**
 ```
 /error-learning packs                    # List all packs
@@ -259,6 +295,7 @@ error-learning/
 │   └── error-curator.py           # SessionEnd + CLI commands
 ├── patterns/
 │   ├── active.json                # Merged patterns (auto-generated)
+│   ├── allowlist.json             # Commands that bypass blocking
 │   └── packs/
 │       ├── common.json            # Universal patterns
 │       ├── windows.json           # Windows/PowerShell

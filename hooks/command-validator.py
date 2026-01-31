@@ -14,6 +14,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.parent
 PATTERNS_DIR = BASE_DIR / "patterns"
 ACTIVE_FILE = PATTERNS_DIR / "active.json"
+ALLOWLIST_FILE = PATTERNS_DIR / "allowlist.json"
 LEGACY_FILE = PATTERNS_DIR / "known-errors.json"  # Fallback for migration
 CONFIG_FILE = BASE_DIR / "config.json"
 
@@ -25,6 +26,46 @@ def load_config():
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return {"show_confidence": True}
+
+
+def load_allowlist():
+    """Load allowlist patterns - commands that should never be blocked."""
+    if not ALLOWLIST_FILE.exists():
+        return []
+    try:
+        with ALLOWLIST_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("patterns", [])
+    except json.JSONDecodeError:
+        return []
+
+
+def is_allowed(command: str, allowlist: list) -> bool:
+    """Check if command matches any allowlist pattern."""
+    for pattern in allowlist:
+        match_type = pattern.get("type", "prefix")
+        match_pattern = pattern.get("pattern", "")
+
+        if not match_pattern:
+            continue
+
+        if match_type == "prefix":
+            if command.startswith(match_pattern):
+                return True
+        elif match_type == "exact":
+            if command == match_pattern:
+                return True
+        elif match_type == "contains":
+            if match_pattern in command:
+                return True
+        elif match_type == "regex":
+            try:
+                if re.search(match_pattern, command):
+                    return True
+            except re.error:
+                pass
+
+    return False
 
 
 def load_patterns():
@@ -108,7 +149,12 @@ def main():
             # No command to validate, allow
             sys.exit(0)
 
-        # Load patterns
+        # Check allowlist first - if command is allowed, skip all blocking
+        allowlist = load_allowlist()
+        if is_allowed(command, allowlist):
+            sys.exit(0)
+
+        # Load blocking patterns
         patterns = load_patterns()
 
         # Check command against each pattern

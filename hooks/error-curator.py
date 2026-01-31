@@ -18,6 +18,13 @@ Pack Management (no coding required!):
   List packs:             python error-curator.py --packs
   Enable a pack:          python error-curator.py --enable <pack>
   Disable a pack:         python error-curator.py --disable <pack>
+
+Allowlist (override blocks):
+  List allowlist:         python error-curator.py --allowlist
+  Allow prefix:           python error-curator.py --allow "ls "
+  Allow exact:            python error-curator.py --allow-exact "git status"
+  Allow regex:            python error-curator.py --allow-regex "^npm (run|test)"
+  Remove from allowlist:  python error-curator.py --unallow "ls "
 """
 
 import json
@@ -39,6 +46,7 @@ PATTERNS_DIR = BASE_DIR / "patterns"
 PACKS_DIR = PATTERNS_DIR / "packs"
 LEARNED_FILE = PACKS_DIR / "learned.json"
 ACTIVE_FILE = PATTERNS_DIR / "active.json"
+ALLOWLIST_FILE = PATTERNS_DIR / "allowlist.json"
 
 
 def load_config():
@@ -107,39 +115,71 @@ def get_existing_pattern_ids(pack_data):
 def extract_error_signature(entry):
     """
     Extract a signature from an error entry for grouping similar errors.
+
+    Strategy: Analyze the ERROR MESSAGE first to understand what actually failed,
+    then create specific signatures. This prevents overly broad patterns.
     """
     if entry.get("type") != "error":
         return None
 
     tool_input = entry.get("input", {})
     command = tool_input.get("command", "")
+    error_msg = entry.get("error", "").lower()
+
     if not command:
         return None
 
-    # Common patterns to normalize
-    patterns = [
-        (r'.*&&.*', 'bash_and_chaining'),
-        (r'^rm\s+', 'bash_rm_command'),
-        (r'^del\s+', 'bash_del_command'),
-        (r'^ls\s+-', 'bash_ls_flags'),
-        (r'^cat\s+', 'bash_cat_command'),
-        (r'^grep\s+', 'bash_grep_command'),
-        (r'^find\s+', 'bash_find_command'),
-        (r'^echo\s+.*>', 'bash_echo_redirect'),
-        (r'^touch\s+', 'bash_touch_command'),
-        (r'^mkdir\s+(?!-p)', 'bash_mkdir_command'),
-        (r'^cp\s+', 'bash_cp_command'),
-        (r'^mv\s+', 'bash_mv_command'),
-        (r'^sed\s+', 'bash_sed_command'),
+    first_word = command.split()[0] if command.split() else ""
+
+    # === ERROR-MESSAGE-BASED SIGNATURES (preferred - more specific) ===
+
+    # Unrecognized option/flag - extract the specific bad flag
+    # Note: macOS uses backtick ` not quote, so include it in the pattern
+    flag_match = re.search(r"unrecognized option [`'\"]?(-{1,2}[\w-]+)", error_msg)
+    if flag_match:
+        bad_flag = flag_match.group(1)
+        return f"bad_flag_{first_word}_{bad_flag}"
+
+    # Invalid option (BSD/macOS style)
+    invalid_opt = re.search(r"invalid option [`'\"]?(-{1,2}[\w-]+)", error_msg)
+    if invalid_opt:
+        bad_flag = invalid_opt.group(1)
+        return f"bad_flag_{first_word}_{bad_flag}"
+
+    # Command not found - the command itself doesn't exist
+    if "command not found" in error_msg or "not recognized" in error_msg:
+        return f"cmd_not_found_{first_word}"
+
+    # File/directory not found - don't block the command, it's a path issue
+    if "no such file" in error_msg or "cannot find" in error_msg:
+        return f"path_not_found_{first_word}"
+
+    # Permission denied - environmental, not command syntax
+    if "permission denied" in error_msg or "access denied" in error_msg or "not permitted" in error_msg:
+        return f"permission_{first_word}"
+
+    # Syntax errors in the command itself
+    if "syntax error" in error_msg or "unexpected token" in error_msg:
+        return f"syntax_{first_word}"
+
+    # === COMMAND-PATTERN SIGNATURES (fallback for structural issues) ===
+    # Only use these for patterns that are genuinely problematic everywhere
+
+    structural_patterns = [
+        # These are structural issues that ARE broadly problematic:
+        (r'.*&&.*', 'bash_and_chaining'),      # && doesn't work in some shells
+        (r'^echo\s+.*>', 'bash_echo_redirect'), # Use Write tool instead
     ]
 
-    for pattern, signature in patterns:
+    for pattern, signature in structural_patterns:
         if re.search(pattern, command, re.IGNORECASE):
             return signature
 
-    # Default: use first word as signature
-    first_word = command.split()[0] if command.split() else None
-    return f"cmd_{first_word}" if first_word else None
+    # === GENERIC FALLBACK ===
+    # For unknown errors, create a hash-based signature from error message
+    # This groups identical errors together but won't create overly broad patterns
+    error_hash = hash(error_msg[:100]) % 10000
+    return f"error_{first_word}_{error_hash}"
 
 
 def pair_errors_with_fixes(entries):
@@ -205,8 +245,16 @@ def analyze_error_patterns(entries):
 
 
 def generate_learned_pattern(signature, data):
-    """Generate a learned pattern entry with fix information."""
+    """
+    Generate a learned pattern entry with fix information.
+
+    Key principle: Patterns should be as SPECIFIC as the actual error.
+    - Bad flag? Block only that flag.
+    - Command not found? Block only that command.
+    - Path error? Don't block the command at all (it's not a command problem).
+    """
     sample_command = data["commands"][0] if data["commands"] else ""
+    sample_error = data["errors"][0].get("error", "") if data["errors"] else ""
     sample_fix = data["fix_commands"][0] if data["fix_commands"] else ""
     error_count = len(data["errors"])
     fix_count = len(data["fixes"])
@@ -214,94 +262,103 @@ def generate_learned_pattern(signature, data):
     # Calculate confidence based on how often fixes worked
     confidence = int((fix_count / error_count) * 100) if error_count > 0 else 0
 
-    # Pattern templates based on signature
-    templates = {
+    # === ERROR-SPECIFIC PATTERN GENERATION ===
+
+    # Bad flag patterns - block only the specific bad flag
+    if signature.startswith("bad_flag_"):
+        # Extract: bad_flag_ls_--invalid-flag-xyz → ls, --invalid-flag-xyz
+        parts = signature.split("_", 2)  # ['bad', 'flag', 'ls_--invalid-flag-xyz']
+        if len(parts) >= 3:
+            remainder = parts[2]  # 'ls_--invalid-flag-xyz'
+            cmd_and_flag = remainder.split("_", 1)
+            cmd = cmd_and_flag[0] if cmd_and_flag else ""
+            bad_flag = cmd_and_flag[1] if len(cmd_and_flag) > 1 else ""
+
+            # Escape regex special chars in the flag
+            escaped_flag = re.escape(bad_flag)
+            return {
+                "id": signature,
+                "name": f"Bad flag: {cmd} {bad_flag}",
+                "category": "learned",
+                "tool": "Bash",
+                "match": {"type": "regex", "pattern": f"^{cmd}\\s+.*{escaped_flag}"},
+                "message": f"BLOCKED: '{bad_flag}' is not a valid option for {cmd}.",
+                "learned_fix": sample_fix if sample_fix else f"Remove or replace '{bad_flag}'",
+                "confidence": confidence,
+                "error_count": error_count,
+                "fix_count": fix_count,
+                "first_seen": data["errors"][0].get("timestamp", "")[:10] if data["errors"] else "",
+                "last_seen": data["errors"][-1].get("timestamp", "")[:10] if data["errors"] else "",
+                "source": "auto_learned"
+            }
+
+    # Command not found - block that specific command
+    if signature.startswith("cmd_not_found_"):
+        cmd = signature.replace("cmd_not_found_", "")
+        return {
+            "id": signature,
+            "name": f"Command not found: {cmd}",
+            "category": "learned",
+            "tool": "Bash",
+            "match": {"type": "regex", "pattern": f"^{re.escape(cmd)}(\\s|$)"},
+            "message": f"BLOCKED: '{cmd}' is not available on this system.",
+            "learned_fix": sample_fix if sample_fix else "Use an alternative command or tool",
+            "confidence": confidence,
+            "error_count": error_count,
+            "fix_count": fix_count,
+            "first_seen": data["errors"][0].get("timestamp", "")[:10] if data["errors"] else "",
+            "last_seen": data["errors"][-1].get("timestamp", "")[:10] if data["errors"] else "",
+            "source": "auto_learned"
+        }
+
+    # Path/permission errors - DON'T create blocking patterns
+    # These are environmental issues, not command syntax problems
+    if signature.startswith("path_not_found_") or signature.startswith("permission_"):
+        return None  # Skip - don't learn from environmental errors
+
+    # === STRUCTURAL PATTERNS (always problematic) ===
+
+    structural_templates = {
         'bash_and_chaining': {
             "match": {"type": "contains", "pattern": "&&"},
             "message": "BLOCKED: '&&' doesn't work here."
-        },
-        'bash_rm_command': {
-            "match": {"type": "regex", "pattern": "^rm\\s+"},
-            "message": "BLOCKED: 'rm' is bash syntax."
-        },
-        'bash_del_command': {
-            "match": {"type": "regex", "pattern": "^del\\s+"},
-            "message": "BLOCKED: Use quoted paths with Remove-Item."
-        },
-        'bash_ls_flags': {
-            "match": {"type": "regex", "pattern": "^ls\\s+-[a-zA-Z]"},
-            "message": "BLOCKED: 'ls -flags' is bash syntax."
-        },
-        'bash_cat_command': {
-            "match": {"type": "regex", "pattern": "^cat\\s+"},
-            "message": "BLOCKED: Use the Read tool instead."
-        },
-        'bash_grep_command': {
-            "match": {"type": "regex", "pattern": "^grep\\s+"},
-            "message": "BLOCKED: Use the Grep tool instead."
-        },
-        'bash_find_command': {
-            "match": {"type": "regex", "pattern": "^find\\s+"},
-            "message": "BLOCKED: Use the Glob tool instead."
         },
         'bash_echo_redirect': {
             "match": {"type": "regex", "pattern": "^echo\\s+.*>"},
             "message": "BLOCKED: Use the Write tool instead."
         },
-        'bash_touch_command': {
-            "match": {"type": "regex", "pattern": "^touch\\s+"},
-            "message": "BLOCKED: 'touch' is bash syntax."
-        },
-        'bash_mkdir_command': {
-            "match": {"type": "regex", "pattern": "^mkdir\\s+(?!-p)"},
-            "message": "BLOCKED: Use New-Item or mkdir -p equivalent."
-        },
-        'bash_cp_command': {
-            "match": {"type": "regex", "pattern": "^cp\\s+"},
-            "message": "BLOCKED: 'cp' is bash syntax."
-        },
-        'bash_mv_command': {
-            "match": {"type": "regex", "pattern": "^mv\\s+"},
-            "message": "BLOCKED: 'mv' is bash syntax."
-        },
-        'bash_sed_command': {
-            "match": {"type": "regex", "pattern": "^sed\\s+"},
-            "message": "BLOCKED: Use the Edit tool instead."
-        },
     }
 
-    # For unknown signatures (cmd_*), be more conservative
-    if signature not in templates:
-        # Only create patterns for specific problematic arguments, not generic commands
-        # Skip if the pattern would just match a common command like "python", "node", etc.
-        first_word = sample_command.split()[0] if sample_command else ""
-        generic_commands = {"python", "node", "npm", "git", "pip", "powershell", "cmd"}
+    if signature in structural_templates:
+        template = structural_templates[signature]
+        return {
+            "id": signature,
+            "name": signature.replace("_", " ").title(),
+            "category": "learned",
+            "tool": "Bash",
+            "match": template["match"],
+            "message": template["message"],
+            "learned_fix": sample_fix if sample_fix else "Check error log for alternatives",
+            "confidence": confidence,
+            "error_count": error_count,
+            "fix_count": fix_count,
+            "first_seen": data["errors"][0].get("timestamp", "")[:10] if data["errors"] else "",
+            "last_seen": data["errors"][-1].get("timestamp", "")[:10] if data["errors"] else "",
+            "source": "auto_learned"
+        }
 
-        if first_word.lower() in generic_commands:
-            # For generic commands, require the full command to match (much more specific)
-            template = {
-                "match": {"type": "exact", "pattern": sample_command.strip()},
-                "message": f"BLOCKED: This exact command failed previously."
-            }
-        else:
-            template = {
-                "match": {"type": "contains", "pattern": first_word},
-                "message": f"BLOCKED: This command pattern has failed {error_count} times."
-            }
-    else:
-        template = templates[signature]
-
-    # Determine learned fix
-    learned_fix = sample_fix if sample_fix else "Check error log for alternatives"
+    # === FALLBACK: Exact command match only ===
+    # For anything else, only block the EXACT command that failed
+    # This is conservative but safe from false positives
 
     return {
         "id": signature,
         "name": signature.replace("_", " ").title(),
         "category": "learned",
         "tool": "Bash",
-        "match": template["match"],
-        "message": template["message"],
-        "learned_fix": learned_fix,
+        "match": {"type": "exact", "pattern": sample_command.strip()},
+        "message": f"BLOCKED: This exact command has failed {error_count} time(s).",
+        "learned_fix": sample_fix if sample_fix else "Check error log for details",
         "confidence": confidence,
         "error_count": error_count,
         "fix_count": fix_count,
@@ -359,6 +416,7 @@ def auto_curate():
     grouped = analyze_error_patterns(entries)
 
     added = []
+    skipped = []
     for signature, data in grouped.items():
         # Skip if already exists
         if signature in existing_ids:
@@ -367,6 +425,10 @@ def auto_curate():
         # Only auto-add if threshold met
         if len(data["errors"]) >= threshold:
             pattern = generate_learned_pattern(signature, data)
+            # Skip if pattern generator returns None (e.g., path/permission errors)
+            if pattern is None:
+                skipped.append(signature)
+                continue
             learned["patterns"].append(pattern)
             added.append(signature)
 
@@ -410,20 +472,32 @@ def manual_review():
     print(f"Error signatures found: {len(grouped)}\n")
 
     new_patterns = []
+    env_patterns = []  # path/permission errors that won't be learned
     for signature, data in sorted(grouped.items(), key=lambda x: -len(x[1]["errors"])):
         error_count = len(data["errors"])
         fix_count = len(data["fixes"])
         status = "EXISTS" if signature in existing_ids else "NEW"
 
+        # Check if this is an environmental error (won't be learned)
+        is_env_error = signature.startswith("path_not_found_") or signature.startswith("permission_")
+
         fix_info = f" ({fix_count} fixes)" if fix_count > 0 else " (no fixes)"
-        print(f"[{status}] {signature}: {error_count} error(s){fix_info}")
+        env_marker = " [ENV-SKIP]" if is_env_error else ""
+        print(f"[{status}] {signature}: {error_count} error(s){fix_info}{env_marker}")
 
         if status == "NEW":
+            if data["errors"]:
+                error_msg = data["errors"][0].get("error", "")[:60]
+                print(f"    Error msg: {error_msg}...")
             if data["commands"]:
-                print(f"    Error cmd: {data['commands'][0][:60]}...")
+                print(f"    Command:   {data['commands'][0][:60]}...")
             if data["fix_commands"]:
                 print(f"    Fix cmd:   {data['fix_commands'][0][:60]}...")
-            new_patterns.append((signature, data))
+
+            if is_env_error:
+                env_patterns.append((signature, data))
+            else:
+                new_patterns.append((signature, data))
 
     if new_patterns:
         print(f"\n--- {len(new_patterns)} new patterns can be added ---")
@@ -434,6 +508,10 @@ def manual_review():
     else:
         print("\nNo new patterns to add.")
 
+    if env_patterns:
+        print(f"\n--- {len(env_patterns)} environmental errors (will NOT be learned) ---")
+        print("These are path/permission issues, not command syntax problems.")
+
 
 def add_all_patterns():
     """Add all new patterns to learned.json."""
@@ -443,9 +521,14 @@ def add_all_patterns():
     grouped = analyze_error_patterns(entries)
 
     added = []
+    skipped = []
     for signature, data in grouped.items():
         if signature not in existing_ids:
             pattern = generate_learned_pattern(signature, data)
+            # Skip if pattern generator returns None (e.g., path/permission errors)
+            if pattern is None:
+                skipped.append(signature)
+                continue
             learned["patterns"].append(pattern)
             added.append(signature)
 
@@ -453,7 +536,9 @@ def add_all_patterns():
         save_pack("learned", learned)
         merge_packs()
         print(f"Added {len(added)} patterns: {', '.join(added)}")
-    else:
+    if skipped:
+        print(f"Skipped {len(skipped)} environmental errors: {', '.join(skipped)}")
+    if not added and not skipped:
         print("No new patterns to add.")
 
 
@@ -474,6 +559,11 @@ def add_pattern(signature):
 
     data = grouped[signature]
     pattern = generate_learned_pattern(signature, data)
+
+    if pattern is None:
+        print(f"Pattern '{signature}' is an environmental error (path/permission) - skipping.")
+        return
+
     learned["patterns"].append(pattern)
     save_pack("learned", learned)
     merge_packs()
@@ -567,6 +657,91 @@ def disable_pack(pack_name):
     return True
 
 
+# === ALLOWLIST MANAGEMENT ===
+
+def load_allowlist():
+    """Load the allowlist file."""
+    if not ALLOWLIST_FILE.exists():
+        return {"description": "Commands that should never be blocked", "version": 1, "patterns": []}
+    try:
+        with ALLOWLIST_FILE.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {"description": "Commands that should never be blocked", "version": 1, "patterns": []}
+
+
+def save_allowlist(data):
+    """Save the allowlist file."""
+    with ALLOWLIST_FILE.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+def list_allowlist():
+    """List all allowlist patterns."""
+    data = load_allowlist()
+    patterns = data.get("patterns", [])
+
+    print("\n" + "=" * 50)
+    print("  ALLOWLIST - Commands that bypass blocking")
+    print("=" * 50 + "\n")
+
+    if not patterns:
+        print("  (empty - no commands are allowlisted)\n")
+    else:
+        for i, p in enumerate(patterns, 1):
+            ptype = p.get("type", "prefix")
+            pattern = p.get("pattern", "")
+            print(f"  {i}. [{ptype}] {pattern}")
+        print()
+
+    print("-" * 50)
+    print("  Commands:")
+    print("    --allow <prefix>       Allow commands starting with prefix")
+    print("    --allow-exact <cmd>    Allow exact command match")
+    print("    --allow-regex <regex>  Allow commands matching regex")
+    print("    --unallow <pattern>    Remove pattern from allowlist")
+    print("-" * 50 + "\n")
+
+
+def add_to_allowlist(pattern: str, match_type: str = "prefix"):
+    """Add a pattern to the allowlist."""
+    data = load_allowlist()
+    patterns = data.get("patterns", [])
+
+    # Check if already exists
+    for p in patterns:
+        if p.get("pattern") == pattern and p.get("type") == match_type:
+            print(f"Pattern already in allowlist: [{match_type}] {pattern}")
+            return False
+
+    patterns.append({"type": match_type, "pattern": pattern})
+    data["patterns"] = patterns
+    save_allowlist(data)
+
+    print(f"\n[OK] Added to allowlist: [{match_type}] {pattern}")
+    print("     Commands matching this pattern will no longer be blocked.")
+    return True
+
+
+def remove_from_allowlist(pattern: str):
+    """Remove a pattern from the allowlist (matches by pattern string)."""
+    data = load_allowlist()
+    patterns = data.get("patterns", [])
+
+    original_count = len(patterns)
+    patterns = [p for p in patterns if p.get("pattern") != pattern]
+
+    if len(patterns) == original_count:
+        print(f"Pattern not found in allowlist: {pattern}")
+        return False
+
+    data["patterns"] = patterns
+    save_allowlist(data)
+
+    print(f"\n[OK] Removed from allowlist: {pattern}")
+    return True
+
+
 def main():
     if len(sys.argv) < 2:
         print("\nError Learning Plugin - Pattern Curator")
@@ -575,6 +750,12 @@ def main():
         print("  --packs              List all packs and their status")
         print("  --enable <pack>      Enable a pattern pack")
         print("  --disable <pack>     Disable a pattern pack")
+        print("\nAllowlist (override blocks):")
+        print("  --allowlist              List allowlisted patterns")
+        print("  --allow <prefix>         Allow commands starting with prefix")
+        print("  --allow-exact <cmd>      Allow exact command match")
+        print("  --allow-regex <regex>    Allow commands matching regex")
+        print("  --unallow <pattern>      Remove from allowlist")
         print("\nPattern Curation:")
         print("  --review             Review pending patterns")
         print("  --add-all            Add all new patterns")
@@ -606,6 +787,21 @@ def main():
     elif mode in ("--enable", "--disable"):
         print(f"Error: {mode} requires a pack name")
         print("Use --packs to see available packs")
+        sys.exit(1)
+    # Allowlist commands
+    elif mode == "--allowlist":
+        list_allowlist()
+    elif mode == "--allow" and len(sys.argv) > 2:
+        add_to_allowlist(sys.argv[2], "prefix")
+    elif mode == "--allow-exact" and len(sys.argv) > 2:
+        add_to_allowlist(sys.argv[2], "exact")
+    elif mode == "--allow-regex" and len(sys.argv) > 2:
+        add_to_allowlist(sys.argv[2], "regex")
+    elif mode == "--unallow" and len(sys.argv) > 2:
+        remove_from_allowlist(sys.argv[2])
+    elif mode in ("--allow", "--allow-exact", "--allow-regex", "--unallow"):
+        print(f"Error: {mode} requires a pattern")
+        print("Use --allowlist to see current allowlist")
         sys.exit(1)
     else:
         print(f"Unknown command: {mode}")

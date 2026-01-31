@@ -1,6 +1,6 @@
 {
   "description": "Merged active patterns from enabled packs. Auto-generated - do not edit directly.",
-  "generated_at": "2026-01-31T00:10:58.360112",
+  "generated_at": "2026-01-31T10:09:22.605797",
   "enabled_packs": [
     "linux",
     "common",
@@ -91,6 +91,60 @@
       "learned_fix": "Edit tool with old_string and new_string parameters",
       "confidence": 100,
       "source": "builtin"
+    },
+    {
+      "id": "cmd_not_found_nonexistent_cmd_test_001",
+      "name": "Command not found: nonexistent_cmd_test_001",
+      "category": "learned",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^nonexistent_cmd_test_001(\\s|$)"
+      },
+      "message": "BLOCKED: 'nonexistent_cmd_test_001' is not available on this system.",
+      "learned_fix": "Use an alternative command or tool",
+      "confidence": 0,
+      "error_count": 2,
+      "fix_count": 0,
+      "first_seen": "2026-01-31",
+      "last_seen": "2026-01-31",
+      "source": "auto_learned"
+    },
+    {
+      "id": "bad_flag_ls_--invalid-flag-xyz",
+      "name": "Bad flag: ls --invalid-flag-xyz",
+      "category": "learned",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^ls\\s+.*\\-\\-invalid\\-flag\\-xyz"
+      },
+      "message": "BLOCKED: '--invalid-flag-xyz' is not a valid option for ls.",
+      "learned_fix": "Remove or replace '--invalid-flag-xyz'",
+      "confidence": 0,
+      "error_count": 2,
+      "fix_count": 0,
+      "first_seen": "2026-01-31",
+      "last_seen": "2026-01-31",
+      "source": "auto_learned"
+    },
+    {
+      "id": "cmd_not_found_choco",
+      "name": "Command not found: choco",
+      "category": "learned",
+      "tool": "Bash",
+      "match": {
+        "type": "regex",
+        "pattern": "^choco(\\s|$)"
+      },
+      "message": "BLOCKED: 'choco' is not available on this system.",
+      "learned_fix": "Use an alternative command or tool",
+      "confidence": 0,
+      "error_count": 2,
+      "fix_count": 0,
+      "first_seen": "2026-01-31",
+      "last_seen": "2026-01-31",
+      "source": "auto_learned"
     }
   ]
 }

@@ -1,0 +1,5 @@
+{
+  "description": "Commands that should never be blocked, even if they match a learned pattern. Use error-curator.py --allow to add entries.",
+  "version": 1,
+  "patterns": []
+}
