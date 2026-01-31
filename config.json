@@ -1,6 +1,6 @@
 {
   "enabled_packs": [
-    "windows",
+    "linux",
     "common",
     "learned",
     "custom"

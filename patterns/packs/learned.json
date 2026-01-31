@@ -2,24 +2,5 @@
   "pack": "learned",
   "description": "Auto-learned patterns from actual errors. Populated by error-curator.py.",
   "version": 1,
-  "patterns": [
-    {
-      "id": "cmd_python",
-      "name": "Cmd Python",
-      "category": "learned",
-      "tool": "Bash",
-      "match": {
-        "type": "exact",
-        "pattern": "python --nonexistent-flag"
-      },
-      "message": "BLOCKED: This exact command failed previously.",
-      "learned_fix": "python --version",
-      "confidence": 50,
-      "error_count": 2,
-      "fix_count": 1,
-      "first_seen": "2026-01-29",
-      "last_seen": "2026-01-29",
-      "source": "auto_learned"
-    }
-  ]
+  "patterns": []
 }

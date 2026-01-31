@@ -1,109 +1,25 @@
 {
   "description": "Merged active patterns from enabled packs. Auto-generated - do not edit directly.",
-  "generated_at": "2026-01-29T18:49:58.916144",
+  "generated_at": "2026-01-31T00:10:58.360112",
   "enabled_packs": [
-    "windows",
+    "linux",
     "common",
     "learned",
     "custom"
   ],
   "patterns": [
     {
-      "id": "windows_bash_chaining",
-      "name": "Bash && chaining on Windows",
-      "category": "syntax_error",
-      "tool": "Bash",
-      "match": {
-        "type": "contains",
-        "pattern": "&&"
-      },
-      "message": "BLOCKED: '&&' is bash syntax, not PowerShell.",
-      "learned_fix": "Use ';' to chain commands: cmd1; cmd2",
-      "confidence": 100,
-      "source": "builtin"
-    },
-    {
-      "id": "bash_rm_command",
-      "name": "Using rm instead of Remove-Item",
-      "category": "syntax_error",
+      "id": "linux_sudo_in_script",
+      "name": "Avoid sudo in automated scripts",
+      "category": "security",
       "tool": "Bash",
       "match": {
         "type": "regex",
-        "pattern": "^rm\\s+"
+        "pattern": "^sudo\\s+"
       },
-      "message": "BLOCKED: 'rm' is not a PowerShell command.",
-      "learned_fix": "Use Remove-Item \"path\" instead",
-      "confidence": 100,
-      "source": "builtin"
-    },
-    {
-      "id": "bash_del_command",
-      "name": "Using del without quotes",
-      "category": "syntax_error",
-      "tool": "Bash",
-      "match": {
-        "type": "regex",
-        "pattern": "^del\\s+[^\"']"
-      },
-      "message": "BLOCKED: Use quoted paths with Remove-Item.",
-      "learned_fix": "Use Remove-Item \"path\" instead",
-      "confidence": 100,
-      "source": "builtin"
-    },
-    {
-      "id": "bash_ls_flags",
-      "name": "Using ls with Unix flags",
-      "category": "syntax_error",
-      "tool": "Bash",
-      "match": {
-        "type": "regex",
-        "pattern": "^ls\\s+-[a-zA-Z]"
-      },
-      "message": "BLOCKED: 'ls -flags' is bash syntax.",
-      "learned_fix": "Use Get-ChildItem or dir instead",
-      "confidence": 100,
-      "source": "builtin"
-    },
-    {
-      "id": "bash_touch_command",
-      "name": "Using touch on Windows",
-      "category": "syntax_error",
-      "tool": "Bash",
-      "match": {
-        "type": "regex",
-        "pattern": "^touch\\s+"
-      },
-      "message": "BLOCKED: 'touch' is not a PowerShell command.",
-      "learned_fix": "Use New-Item \"path\" -ItemType File",
-      "confidence": 100,
-      "source": "builtin"
-    },
-    {
-      "id": "bash_cp_command",
-      "name": "Using cp instead of Copy-Item",
-      "category": "syntax_error",
-      "tool": "Bash",
-      "match": {
-        "type": "regex",
-        "pattern": "^cp\\s+"
-      },
-      "message": "BLOCKED: 'cp' is bash syntax.",
-      "learned_fix": "Use Copy-Item \"source\" \"dest\" instead",
-      "confidence": 100,
-      "source": "builtin"
-    },
-    {
-      "id": "bash_mv_command",
-      "name": "Using mv instead of Move-Item",
-      "category": "syntax_error",
-      "tool": "Bash",
-      "match": {
-        "type": "regex",
-        "pattern": "^mv\\s+"
-      },
-      "message": "BLOCKED: 'mv' is bash syntax.",
-      "learned_fix": "Use Move-Item \"source\" \"dest\" instead",
-      "confidence": 100,
+      "message": "WARNING: sudo in automated scripts may cause issues. Consider if elevated permissions are truly needed.",
+      "learned_fix": "Run script with appropriate permissions or use capability-based access",
+      "confidence": 50,
       "source": "builtin"
     },
     {
@@ -175,24 +91,6 @@
       "learned_fix": "Edit tool with old_string and new_string parameters",
       "confidence": 100,
       "source": "builtin"
-    },
-    {
-      "id": "cmd_python",
-      "name": "Cmd Python",
-      "category": "learned",
-      "tool": "Bash",
-      "match": {
-        "type": "exact",
-        "pattern": "python --nonexistent-flag"
-      },
-      "message": "BLOCKED: This exact command failed previously.",
-      "learned_fix": "python --version",
-      "confidence": 50,
-      "error_count": 2,
-      "fix_count": 1,
-      "first_seen": "2026-01-29",
-      "last_seen": "2026-01-29",
-      "source": "auto_learned"
     }
   ]
 }

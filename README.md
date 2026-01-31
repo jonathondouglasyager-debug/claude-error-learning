@@ -23,25 +23,137 @@ errors.jsonl                 errors.jsonl                   learned.json
 
 ## Installation
 
-### As a Claude Code Plugin
+### Step 1: Clone the Repository
 
 ```bash
-# Install from GitHub
-claude plugins install github:jonathondouglasyager-debug/claude-error-learning
+# macOS/Linux
+git clone https://github.com/jonathondouglasyager-debug/claude-error-learning.git ~/claude-error-learning
+
+# Windows
+git clone https://github.com/jonathondouglasyager-debug/claude-error-learning.git %USERPROFILE%\claude-error-learning
 ```
 
-### Manual Installation
+### Step 2: Add Hooks to Global Settings
 
-1. Clone this repo to your preferred location
-2. Add the plugin to your `.claude/settings.json`:
+Add the following to your `~/.claude/settings.json` (macOS/Linux) or `%USERPROFILE%\.claude\settings.json` (Windows):
 
+**macOS/Linux:**
 ```json
 {
-  "enabledPlugins": {
-    "error-learning": "path/to/error-learning"
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/claude-error-learning/hooks/command-validator.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/claude-error-learning/hooks/fix-tracker.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/claude-error-learning/hooks/error-logger.py\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/claude-error-learning/hooks/error-curator.py\" --auto"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
+
+**Windows:**
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"%USERPROFILE%\\claude-error-learning\\hooks\\command-validator.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"%USERPROFILE%\\claude-error-learning\\hooks\\fix-tracker.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"%USERPROFILE%\\claude-error-learning\\hooks\\error-logger.py\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"%USERPROFILE%\\claude-error-learning\\hooks\\error-curator.py\" --auto"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Step 3: Enable OS-Specific Pattern Packs
+
+```bash
+cd ~/claude-error-learning  # or %USERPROFILE%\claude-error-learning on Windows
+
+# macOS/Linux users:
+python3 hooks/error-curator.py --enable linux
+
+# Windows users:
+python hooks/error-curator.py --enable windows
+```
+
+### Step 4: Restart Claude Code
+
+Start a new Claude session for hooks to take effect.
 
 ## Quick Start
 
