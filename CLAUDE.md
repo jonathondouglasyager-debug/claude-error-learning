@@ -3,7 +3,6 @@
 Automated error detection, fix tracking, and prevention for Claude Code via hooks.
 
 **Repo:** https://github.com/jonathondouglasyager-debug/claude-error-learning
-**Location:** `C:\Users\jonat\Desktop\SUPER_POWERS_PROJECT`
 
 ---
 
