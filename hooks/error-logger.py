@@ -10,10 +10,23 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import sys as _sys
+_PLUGIN_ROOT = (
+    __import__("os").environ.get("CLAUDE_PLUGIN_ROOT")
+    or str(Path(__file__).parent.parent)
+)
+if _PLUGIN_ROOT not in _sys.path:
+    _sys.path.insert(0, _PLUGIN_ROOT)
+from lib.sanitizer import sanitize_error_text
+
 # Base directory (where this script lives)
 BASE_DIR = Path(__file__).parent.parent
-DATA_DIR = BASE_DIR / "data"
-ERRORS_FILE = DATA_DIR / "errors.jsonl"
+_DATA_DIR = Path(
+    __import__("os").environ.get("ERROR_LEARNING_DATA_DIR")
+    or (BASE_DIR / "data")
+)
+DATA_DIR = _DATA_DIR
+ERRORS_FILE = _DATA_DIR / "errors.jsonl"
 CONFIG_FILE = BASE_DIR / "config.json"
 
 
@@ -78,7 +91,7 @@ def main():
             "category": categorize_error(error_text),
             "tool": tool_name,
             "input": tool_input,
-            "error": error_text[:2000],  # Truncate very long errors
+            "error": sanitize_error_text(error_text),
             "awaiting_fix": track_fixes,  # Signal fix-tracker to watch for fix
             "context": {
                 "working_dir": project_dir,
