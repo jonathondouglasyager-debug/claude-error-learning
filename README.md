@@ -36,7 +36,37 @@ This prevents false positives like blocking all `ls` commands just because one b
 
 ## Installation
 
-### Step 1: Clone the Repository
+### Recommended: Install as a Claude Code plugin
+
+From any Claude Code session:
+
+```
+/plugin marketplace add jonathondouglasyager-debug/claude-error-learning
+/plugin install error-learning@yager-plugins
+```
+
+That's it. Hooks register automatically — no need to edit `settings.json`. Start a new Claude session for the hooks to take effect.
+
+To enable your OS-specific pattern pack after installing:
+
+```bash
+# macOS/Linux
+python3 ~/.claude/plugins/cache/**/error-learning/**/hooks/error-curator.py --enable linux
+
+# Windows (PowerShell)
+python "$env:USERPROFILE\.claude\plugins\cache\*\error-learning\*\hooks\error-curator.py" --enable windows
+```
+
+(You can also just run the slash command `/error-learning packs enable linux` once the plugin is installed.)
+
+### Manual install (alternative)
+
+If you'd rather install from a clone — e.g. to hack on the plugin locally — follow these steps instead.
+
+<details>
+<summary>Manual install steps</summary>
+
+#### Step 1: Clone the Repository
 
 ```bash
 # macOS/Linux
@@ -46,7 +76,7 @@ git clone https://github.com/jonathondouglasyager-debug/claude-error-learning.gi
 git clone https://github.com/jonathondouglasyager-debug/claude-error-learning.git %USERPROFILE%\claude-error-learning
 ```
 
-### Step 2: Add Hooks to Global Settings
+#### Step 2: Add Hooks to Global Settings
 
 Add the following to your `~/.claude/settings.json` (macOS/Linux) or `%USERPROFILE%\.claude\settings.json` (Windows):
 
@@ -152,7 +182,7 @@ Add the following to your `~/.claude/settings.json` (macOS/Linux) or `%USERPROFI
 }
 ```
 
-### Step 3: Enable OS-Specific Pattern Packs
+#### Step 3: Enable OS-Specific Pattern Packs
 
 ```bash
 cd ~/claude-error-learning  # or %USERPROFILE%\claude-error-learning on Windows
@@ -164,9 +194,11 @@ python3 hooks/error-curator.py --enable linux
 python hooks/error-curator.py --enable windows
 ```
 
-### Step 4: Restart Claude Code
+#### Step 4: Restart Claude Code
 
 Start a new Claude session for hooks to take effect.
+
+</details>
 
 ## Quick Start
 
@@ -285,7 +317,9 @@ The confidence score is based on how often the fix worked.
 
 ```
 error-learning/
-├── plugin.json                    # Plugin manifest
+├── .claude-plugin/
+│   ├── plugin.json                # Plugin manifest
+│   └── marketplace.json           # Self-hosted marketplace catalog
 ├── config.json                    # User settings
 ├── manage-packs.py                # Interactive pack manager (double-click!)
 ├── hooks/

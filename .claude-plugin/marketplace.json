@@ -1,0 +1,18 @@
+{
+  "name": "yager-plugins",
+  "owner": {
+    "name": "Jonathon Yager"
+  },
+  "metadata": {
+    "description": "Claude Code plugins built by Jonathon Yager."
+  },
+  "plugins": [
+    {
+      "name": "error-learning",
+      "source": "./",
+      "description": "Automated error detection, learning, and prevention for Claude Code. Captures errors, tracks fixes, and blocks known-bad patterns with learned suggestions.",
+      "category": "productivity",
+      "tags": ["error-prevention", "hooks", "automation", "learning"]
+    }
+  ]
+}

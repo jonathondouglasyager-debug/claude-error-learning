@@ -2,7 +2,11 @@
   "name": "error-learning",
   "version": "1.0.0",
   "description": "Automated error detection, learning, and prevention for Claude Code. Captures errors, tracks fixes, and blocks known-bad patterns with learned suggestions.",
-  "author": "Jonathon Yager",
+  "author": {
+    "name": "Jonathon Yager",
+    "url": "https://github.com/jonathondouglasyager-debug"
+  },
+  "homepage": "https://github.com/jonathondouglasyager-debug/claude-error-learning",
   "repository": "https://github.com/jonathondouglasyager-debug/claude-error-learning",
   "license": "MIT",
   "keywords": ["error", "learning", "prevention", "hooks", "patterns"],
@@ -50,8 +54,5 @@
         ]
       }
     ]
-  },
-  "commands": {
-    "error-learning": "commands/error-learning.md"
   }
 }

@@ -137,7 +137,9 @@ python hooks/error-curator.py --disable linux   # Disable a pack
 
 | File | Purpose |
 |------|---------|
-| `plugin.json` | Plugin manifest |
+| `.claude-plugin/plugin.json` | Plugin manifest (registers hooks, commands, metadata) |
+| `.claude-plugin/marketplace.json` | Self-hosted marketplace catalog |
+| `CHANGELOG.md` | Release notes |
 | `config.json` | User settings |
 | `patterns/active.json` | Merged active patterns |
 | `patterns/allowlist.json` | Commands that bypass blocking |
@@ -216,9 +218,9 @@ Match types: `prefix`, `exact`, `contains`, `regex`
 
 | Scope | Status |
 |-------|--------|
-| This project | Active (plugin format) |
-| Global | Promote by adding to `~/.claude/settings.json` |
-| Registry | Not yet published |
+| This project | Active (installable plugin format) |
+| Self-hosted marketplace | Live — install via `/plugin marketplace add jonathondouglasyager-debug/claude-error-learning` then `/plugin install error-learning@yager-plugins` |
+| Official Anthropic marketplace | Not submitted (no public submission form documented as of 2026-04-15) |
 
 ---
 
@@ -230,11 +232,12 @@ Track which patterns actually prevent errors. High-scoring patterns surface firs
 ### Phase 5: Context Injection
 `SessionStart` hook injects top patterns into Claude's context proactively.
 
-### Phase 6: Plugin Registry
-Publish to Claude Code plugin registry for easy installation.
+### Phase 6: Plugin Registry — DONE (2026-04-15)
+Self-hosted marketplace via `.claude-plugin/marketplace.json`. Installable from any Claude Code session.
 
 ---
 
 *Created: 2026-01-28*
 *Updated: 2026-01-29 - Converted to plugin format with fix tracking and pattern packs*
 *Updated: 2026-01-31 - Smart error-message detection, allowlist override, environmental error skipping*
+*Updated: 2026-04-15 - Phase 6 complete: plugin restructured for marketplace distribution (.claude-plugin/ layout + self-hosted marketplace.json)*
