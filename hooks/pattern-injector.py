@@ -22,7 +22,7 @@ _DEFAULT_CONFIG = {
     "injection_enabled": True,
     "injection_top_k": 10,
     "injection_token_cap": 400,
-    "injection_min_score": 0.0,
+    "injection_min_score": 0.05,
     "injection_scope": "top_learned",
 }
 
@@ -53,6 +53,12 @@ def _patterns():
 
 
 def _filter_by_scope(patterns, scope):
+    """Filter patterns by scope.
+
+    Supported scopes: "all_active", "learned_only", "high_confidence",
+    "top_learned" (default). Any unrecognized value silently falls
+    through to the "top_learned" branch.
+    """
     # drop patterns flagged ineligible (Task 8 decay sets injection_eligible=False)
     patterns = [p for p in patterns if p.get("injection_eligible", True)]
     if scope == "all_active":
@@ -61,7 +67,9 @@ def _filter_by_scope(patterns, scope):
         return [p for p in patterns if p.get("category") == "learned"]
     if scope == "high_confidence":
         return [p for p in patterns if (p.get("confidence") or 0) >= 70]
-    # "top_learned" default — ranked by triggers within the learned set
+    # "top_learned" default — category=="learned" with pre-sort by trigger
+    # count so that ties in TF-IDF score break toward more-frequently-hit
+    # patterns (Python's sort is stable).
     learned = [p for p in patterns if p.get("category") == "learned"]
     learned.sort(key=lambda p: p.get("error_count", 0) + p.get("fix_count", 0), reverse=True)
     return learned

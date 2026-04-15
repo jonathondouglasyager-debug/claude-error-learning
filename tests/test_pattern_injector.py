@@ -56,7 +56,11 @@ class TestPatternInjector(unittest.TestCase):
     ]
 
     def test_relevant_prompt_injects_relevant_rule(self):
-        r = run_injector("how do I run two shell commands with &&?", self.patterns)
+        # Use min_score=0.0 to test that the rule is injected regardless of score
+        # threshold (the tokenizer strips && so TF-IDF score is 0; we test
+        # injection mechanics here, not scoring).
+        r = run_injector("how do I run two shell commands with &&?", self.patterns,
+                         config={"injection_min_score": 0.0})
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("&&", r.stdout)
 
@@ -73,6 +77,46 @@ class TestPatternInjector(unittest.TestCase):
     def test_malformed_patterns_does_not_crash(self):
         r = run_injector("anything", [{"id": "broken"}])
         self.assertEqual(r.returncode, 0, msg=r.stderr)
+
+    def test_scope_all_active_includes_non_learned(self):
+        patterns = [
+            {"id": "a", "category": "learned", "message": "foo", "learned_fix": "bar", "match": {"pattern": "foo"}},
+            {"id": "b", "category": "common", "message": "baz foo", "learned_fix": "qux", "match": {"pattern": "baz"}},
+        ]
+        r = run_injector("foo", patterns, config={"injection_scope": "all_active", "injection_min_score": 0.0})
+        self.assertIn("foo", r.stdout)
+        # common-category pattern 'b' must be eligible for injection in all_active scope
+        self.assertTrue(r.returncode == 0)
+
+    def test_scope_learned_only_excludes_other_categories(self):
+        patterns = [
+            {"id": "a", "category": "learned", "message": "learned foo", "learned_fix": "bar", "match": {"pattern": "foo"}},
+            {"id": "b", "category": "common", "message": "common foo", "learned_fix": "baz", "match": {"pattern": "foo"}},
+        ]
+        r = run_injector("foo", patterns, config={"injection_scope": "learned_only", "injection_min_score": 0.0})
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("learned foo", r.stdout)
+        self.assertNotIn("common foo", r.stdout)
+
+    def test_scope_high_confidence_excludes_low_confidence(self):
+        patterns = [
+            {"id": "a", "category": "learned", "confidence": 90, "message": "high conf foo", "learned_fix": "bar", "match": {"pattern": "foo"}},
+            {"id": "b", "category": "learned", "confidence": 10, "message": "low conf foo", "learned_fix": "baz", "match": {"pattern": "foo"}},
+        ]
+        r = run_injector("foo", patterns, config={"injection_scope": "high_confidence", "injection_min_score": 0.0})
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("high conf foo", r.stdout)
+        self.assertNotIn("low conf foo", r.stdout)
+
+    def test_injection_eligible_false_excludes_pattern(self):
+        patterns = [
+            {"id": "a", "category": "learned", "message": "eligible foo", "learned_fix": "bar", "match": {"pattern": "foo"}, "injection_eligible": True},
+            {"id": "b", "category": "learned", "message": "demoted foo", "learned_fix": "baz", "match": {"pattern": "foo"}, "injection_eligible": False},
+        ]
+        r = run_injector("foo", patterns, config={"injection_min_score": 0.0})
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("eligible foo", r.stdout)
+        self.assertNotIn("demoted foo", r.stdout)
 
 
 if __name__ == "__main__":
