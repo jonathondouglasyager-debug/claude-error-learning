@@ -6,26 +6,25 @@ Appends error records to data/errors.jsonl with awaiting_fix flag for fix-tracke
 """
 
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
-import sys as _sys
 _PLUGIN_ROOT = (
-    __import__("os").environ.get("CLAUDE_PLUGIN_ROOT")
+    os.environ.get("CLAUDE_PLUGIN_ROOT")
     or str(Path(__file__).parent.parent)
 )
-if _PLUGIN_ROOT not in _sys.path:
-    _sys.path.insert(0, _PLUGIN_ROOT)
+if _PLUGIN_ROOT not in sys.path:
+    sys.path.insert(0, _PLUGIN_ROOT)
 from lib.sanitizer import sanitize_error_text
 
 # Base directory (where this script lives)
 BASE_DIR = Path(__file__).parent.parent
 _DATA_DIR = Path(
-    __import__("os").environ.get("ERROR_LEARNING_DATA_DIR")
+    os.environ.get("ERROR_LEARNING_DATA_DIR")
     or (BASE_DIR / "data")
 )
-DATA_DIR = _DATA_DIR
 ERRORS_FILE = _DATA_DIR / "errors.jsonl"
 CONFIG_FILE = BASE_DIR / "config.json"
 
@@ -100,7 +99,7 @@ def main():
         }
 
         # Ensure data directory exists
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
         # Append to JSONL file
         with ERRORS_FILE.open("a", encoding="utf-8") as f:

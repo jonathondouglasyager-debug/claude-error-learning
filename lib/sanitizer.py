@@ -11,9 +11,9 @@ MAX_LEN = 2048
 _URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
 _INSTRUCTION_RES = [
     re.compile(r"\bignore\s+(previous|above|prior|all)\s+instruction", re.IGNORECASE),
-    re.compile(r"\b(system|assistant|user)\s*:\s*.+", re.IGNORECASE | re.MULTILINE),
-    re.compile(r"\bnew\s+instruction", re.IGNORECASE),
-    re.compile(r"\byou\s+are\s+now\s+", re.IGNORECASE),
+    re.compile(r"^(system|assistant|user)\s*:\s*.+", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"\bnew\s+instructions?\b(?!\s+(pointer|format|set|from\s+server))", re.IGNORECASE),
+    re.compile(r"\byou\s+are\s+now\s+(in\s+)?(developer|jailbreak|admin|unrestricted|dan)\b", re.IGNORECASE),
     re.compile(r"\bdeveloper\s+mode", re.IGNORECASE),
 ]
 

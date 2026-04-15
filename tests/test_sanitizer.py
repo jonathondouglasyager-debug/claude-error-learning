@@ -39,6 +39,22 @@ class TestSanitizer(unittest.TestCase):
     def test_handles_none_like(self):
         self.assertEqual(sanitize_error_text(None), "")
 
+    def test_preserves_mid_line_role_word(self):
+        # legitimate shell error containing 'system:' mid-line must be preserved
+        dirty = "bash: system: command not found"
+        clean = sanitize_error_text(dirty)
+        self.assertEqual(clean, dirty)
+
+    def test_preserves_git_you_are_now(self):
+        dirty = "git: you are now in detached HEAD state"
+        clean = sanitize_error_text(dirty)
+        self.assertEqual(clean, dirty)
+
+    def test_preserves_new_instruction_pointer(self):
+        dirty = "Segfault at new instruction pointer: 0x7fff0000"
+        clean = sanitize_error_text(dirty)
+        self.assertEqual(clean, dirty)
+
 
 if __name__ == "__main__":
     unittest.main()
