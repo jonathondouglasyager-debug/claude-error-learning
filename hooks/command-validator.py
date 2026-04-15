@@ -6,17 +6,30 @@ Blocks commands matching known error patterns and shows learned fixes.
 """
 
 import json
+import os
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+
+_PLUGIN_ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or str(Path(__file__).parent.parent)
+_PATTERNS_PATH = os.environ.get("ERROR_LEARNING_PATTERNS_PATH") or os.path.join(_PLUGIN_ROOT, "patterns", "active.json")
 
 # Base directory (where this script lives)
 BASE_DIR = Path(__file__).parent.parent
 PATTERNS_DIR = BASE_DIR / "patterns"
-ACTIVE_FILE = PATTERNS_DIR / "active.json"
+ACTIVE_FILE = Path(_PATTERNS_PATH)
 ALLOWLIST_FILE = PATTERNS_DIR / "allowlist.json"
 LEGACY_FILE = PATTERNS_DIR / "known-errors.json"  # Fallback for migration
 CONFIG_FILE = BASE_DIR / "config.json"
+
+
+def _save_patterns_file(path, doc):
+    """Atomically write patterns doc back to disk."""
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(doc, f, indent=2)
+    os.replace(tmp, path)
 
 
 def load_config():
@@ -70,14 +83,24 @@ def is_allowed(command: str, allowlist: list) -> bool:
 
 def load_patterns():
     """Load active patterns from merged active.json or fallback to legacy file."""
+    patterns, _, _ = load_patterns_doc()
+    return patterns
+
+
+def load_patterns_doc():
+    """Load patterns and return (patterns, doc, source_path) for write-back.
+
+    source_path is None when patterns came from the legacy file or nowhere
+    (legacy file is not written back — only ACTIVE_FILE is).
+    """
     # Try active.json first (new pattern packs system)
     if ACTIVE_FILE.exists():
         try:
             with ACTIVE_FILE.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-                patterns = data.get("patterns", [])
+                doc = json.load(f)
+                patterns = doc.get("patterns", [])
                 if patterns:
-                    return patterns
+                    return patterns, doc, str(ACTIVE_FILE)
         except json.JSONDecodeError:
             pass
 
@@ -85,12 +108,12 @@ def load_patterns():
     if LEGACY_FILE.exists():
         try:
             with LEGACY_FILE.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-                return data.get("patterns", [])
+                doc = json.load(f)
+                return doc.get("patterns", []), doc, None
         except json.JSONDecodeError:
             pass
 
-    return []
+    return [], {}, None
 
 
 def check_pattern(command: str, pattern: dict) -> bool:
@@ -154,12 +177,20 @@ def main():
         if is_allowed(command, allowlist):
             sys.exit(0)
 
-        # Load blocking patterns
-        patterns = load_patterns()
+        # Load blocking patterns (with doc for write-back)
+        patterns, patterns_doc, patterns_path = load_patterns_doc()
 
         # Check command against each pattern
         for pattern in patterns:
             if check_pattern(command, pattern):
+                # Stamp last_triggered_at and persist (best-effort, fail open)
+                if patterns_path is not None:
+                    try:
+                        pattern["last_triggered_at"] = datetime.now(timezone.utc).isoformat()
+                        _save_patterns_file(patterns_path, patterns_doc)
+                    except Exception:
+                        pass
+
                 # Found a match - block the command
                 message = format_block_message(pattern, config)
 
