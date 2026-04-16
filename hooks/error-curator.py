@@ -864,6 +864,26 @@ def main():
                 json.dump(doc, f, indent=2)
         print(f"Recorded '{direction}' vote for {pid}. Auto-disabled: {disabled}")
         sys.exit(0)
+    elif "--llm-curate" in sys.argv:
+        _PROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _PROOT not in sys.path:
+            sys.path.insert(0, _PROOT)
+        from lib.curation import llm_curate
+
+        learned_path = os.path.join(_PROOT, "patterns", "packs", "learned.json")
+        with open(learned_path) as f:
+            doc = json.load(f)
+        patterns = doc.get("patterns", doc if isinstance(doc, list) else [])
+        try:
+            result = llm_curate(patterns)
+        except RuntimeError as e:
+            print(f"error: {e}")
+            print("Set ANTHROPIC_API_KEY or disable llm_curate_enabled in config.json.")
+            sys.exit(1)
+        print(json.dumps(result, indent=2))
+        print()
+        print("This is a SUGGESTION. Review and apply manually, or edit patterns/packs/learned.json directly.")
+        sys.exit(0)
     else:
         print(f"Unknown command: {mode}")
         print("Run without arguments to see usage")
