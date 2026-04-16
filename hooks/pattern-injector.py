@@ -15,38 +15,20 @@ _PLUGIN_ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.dirname(
 if _PLUGIN_ROOT not in sys.path:
     sys.path.insert(0, _PLUGIN_ROOT)
 
+from lib.config import active_config
 from lib.renderer import render_as_natural_language
 from lib.ranker import top_k
-
-_DEFAULT_CONFIG = {
-    "injection_enabled": True,
-    "injection_top_k": 10,
-    "injection_token_cap": 400,
-    "injection_min_score": 0.05,
-    "injection_scope": "top_learned",
-}
-
-
-def _load_json(path, default):
-    try:
-        with open(path) as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return default
-
-
-def _config():
-    path = os.environ.get("ERROR_LEARNING_CONFIG_PATH") or os.path.join(_PLUGIN_ROOT, "config.json")
-    cfg = dict(_DEFAULT_CONFIG)
-    cfg.update(_load_json(path, {}))
-    return cfg
 
 
 def _patterns():
     path = os.environ.get("ERROR_LEARNING_PATTERNS_PATH") or os.path.join(
         _PLUGIN_ROOT, "patterns", "active.json"
     )
-    raw = _load_json(path, {})
+    try:
+        with open(path) as f:
+            raw = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
     if isinstance(raw, list):
         return raw
     return raw.get("patterns", [])
@@ -80,7 +62,7 @@ def main():
         payload = json.loads(sys.stdin.read() or "{}")
     except json.JSONDecodeError:
         return 0  # never block the user's prompt
-    cfg = _config()
+    cfg = active_config()
     if not cfg.get("injection_enabled", True):
         return 0
 

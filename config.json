@@ -1,12 +1,19 @@
 {
-  "enabled_packs": [
-    "linux",
-    "common",
-    "learned",
-    "custom"
-  ],
+  "enabled_packs": ["common", "learned", "custom"],
   "auto_curate": true,
   "curate_threshold": 2,
   "show_confidence": true,
-  "track_fixes": true
+
+  "injection_enabled": true,
+  "injection_top_k": 10,
+  "injection_token_cap": 400,
+  "injection_min_score": 0.05,
+  "injection_scope": "top_learned",
+
+  "decay_enabled": true,
+  "decay_max_age_days": 30,
+
+  "llm_curate_enabled": false,
+
+  "vote_down_threshold": 3
 }
