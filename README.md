@@ -34,6 +34,29 @@ The plugin analyzes **error messages**, not just command patterns, to create pre
 
 This prevents false positives like blocking all `ls` commands just because one bad flag failed.
 
+## Proactive Injection (v1.1)
+
+Beyond reactive blocking, the plugin now injects the most-relevant learned
+rules into Claude's context at the moment you submit a prompt. Each prompt
+triggers a TF-IDF ranking over your learned patterns; the top 10
+(configurable) get rendered as a short natural-language bullet list under a
+400-token cap, so Claude avoids the mistake in the first place.
+
+Key knobs in `config.json`:
+
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `injection_enabled` | `true` | Turn off for reactive-only |
+| `injection_top_k` | `10` | Max patterns per prompt |
+| `injection_token_cap` | `400` | Hard ceiling on injected content |
+| `injection_scope` | `"top_learned"` | `top_learned`, `all_active`, `learned_only`, `high_confidence` |
+| `decay_max_age_days` | `30` | Stale patterns drop from the pool |
+| `vote_down_threshold` | `3` | Down-votes before auto-disable |
+| `llm_curate_enabled` | `false` | Opt in (requires `ANTHROPIC_API_KEY`) |
+
+Disagree with a block? `/error-learning vote <pattern_id> down`.
+Three down-votes disables it permanently.
+
 ## Installation
 
 ### Recommended: Install as a Claude Code plugin
@@ -336,6 +359,18 @@ error-learning/
 │       ├── linux.json             # Linux/bash
 │       ├── learned.json           # Auto-learned
 │       └── custom.json            # User additions
+├── lib/
+│   ├── __init__.py
+│   ├── sanitizer.py               # Error text sanitization
+│   ├── tokenizer.py               # TF-IDF tokenizer
+│   ├── ranker.py                  # TF-IDF ranking
+│   ├── renderer.py                # Natural-language rendering + token cap
+│   ├── decay.py                   # Pattern decay logic
+│   ├── vote.py                    # Vote tracking
+│   ├── curation.py                # Opt-in LLM curation
+│   └── config.py                  # Central config loader
+├── tests/                         # unittest suite (stdlib only)
+├── Makefile                       # make test / make test-verbose
 ├── commands/
 │   └── error-learning.md          # Slash command
 └── data/                          # gitignored

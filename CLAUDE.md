@@ -47,6 +47,7 @@ This prevents false positives like blocking all `ls` commands when only one bad 
 | Command Validator | `hooks/command-validator.py` | PreToolUse (Bash) | Blocks + shows learned fix |
 | Error Curator | `hooks/error-curator.py` | SessionEnd | Pairs errors with fixes |
 | Slash Command | `commands/error-learning.md` | - | Management interface |
+| Pattern Injector | `hooks/pattern-injector.py` | UserPromptSubmit | TF-IDF ranking + natural-language injection |
 
 ---
 
@@ -146,6 +147,9 @@ python hooks/error-curator.py --disable linux   # Disable a pack
 | `patterns/packs/*.json` | Individual pattern packs |
 | `data/errors.jsonl` | Error + fix log |
 | `data/curated.log` | Curation activity |
+| `lib/` | Shared modules: sanitizer, tokenizer, ranker, renderer, decay, vote, curation, config |
+| `tests/` | unittest suite (stdlib) |
+| `Makefile` | `make test`, `make test-verbose` |
 
 ---
 
@@ -226,11 +230,10 @@ Match types: `prefix`, `exact`, `contains`, `regex`
 
 ## Future Phases
 
-### Phase 4: Outcome-Based Scoring
-Track which patterns actually prevent errors. High-scoring patterns surface first.
+### Phase 4: Outcome-Based Scoring — DONE (subsumed into Phase 5.5)
 
-### Phase 5: Context Injection
-`SessionStart` hook injects top patterns into Claude's context proactively.
+### Phase 5: Context Injection — DONE (2026-04-15)
+5.1 sanitization, 5.2 ranking+injection, 5.3 decay, 5.4 LLM curation (opt-in), 5.5 vote
 
 ### Phase 6: Plugin Registry — DONE (2026-04-15)
 Self-hosted marketplace via `.claude-plugin/marketplace.json`. Installable from any Claude Code session.
@@ -240,4 +243,5 @@ Self-hosted marketplace via `.claude-plugin/marketplace.json`. Installable from 
 *Created: 2026-01-28*
 *Updated: 2026-01-29 - Converted to plugin format with fix tracking and pattern packs*
 *Updated: 2026-01-31 - Smart error-message detection, allowlist override, environmental error skipping*
+*Updated: 2026-04-15 - Phase 5 shipped: 2026 redesign with relevance-gated injection, decay, sanitization, vote, opt-in LLM curation*
 *Updated: 2026-04-15 - Phase 6 complete: plugin restructured for marketplace distribution (.claude-plugin/ layout + self-hosted marketplace.json)*
