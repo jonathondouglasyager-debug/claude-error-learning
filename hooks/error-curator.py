@@ -831,6 +831,39 @@ def main():
                 json.dump(doc, f, indent=2)
         print(f"Decay: demoted {len(demoted)} pattern(s): {demoted}")
         sys.exit(0)
+    elif "--vote" in sys.argv:
+        i = sys.argv.index("--vote")
+        if i + 2 >= len(sys.argv):
+            print("usage: error-curator.py --vote <pattern_id> up|down")
+            sys.exit(2)
+        pid, direction = sys.argv[i + 1], sys.argv[i + 2]
+        _PROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _PROOT not in sys.path:
+            sys.path.insert(0, _PROOT)
+        from lib.vote import record_vote, apply_vote_thresholds
+
+        learned_path = os.path.join(_PROOT, "patterns", "packs", "learned.json")
+        with open(learned_path) as f:
+            doc = json.load(f)
+        patterns = doc.get("patterns", doc if isinstance(doc, list) else [])
+        found = False
+        for p in patterns:
+            if p.get("id") == pid:
+                record_vote(p, direction)
+                found = True
+                break
+        if not found:
+            print(f"pattern not found: {pid}")
+            sys.exit(1)
+        disabled = apply_vote_thresholds(patterns)
+        with open(learned_path, "w") as f:
+            if isinstance(doc, list):
+                json.dump(patterns, f, indent=2)
+            else:
+                doc["patterns"] = patterns
+                json.dump(doc, f, indent=2)
+        print(f"Recorded '{direction}' vote for {pid}. Auto-disabled: {disabled}")
+        sys.exit(0)
     else:
         print(f"Unknown command: {mode}")
         print("Run without arguments to see usage")

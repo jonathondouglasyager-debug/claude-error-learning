@@ -193,6 +193,7 @@ def main():
 
                 # Found a match - block the command
                 message = format_block_message(pattern, config)
+                message += f"\n\n(Disagree? Run: /error-learning vote {pattern['id']} down)"
 
                 # Write to stderr (Claude will see this)
                 print(message, file=sys.stderr)

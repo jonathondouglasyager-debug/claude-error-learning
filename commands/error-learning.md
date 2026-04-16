@@ -104,6 +104,14 @@ Available Pattern Packs
 [DISABLED] linux    - 1 patterns - Linux/bash patterns
 ```
 
+## vote
+
+Usage: `/error-learning vote <pattern_id> up|down`
+
+Record an outcome for a learned pattern. Three down-votes auto-disable a
+pattern so it stops blocking and stops being injected. The `up` variant
+boosts the pattern's rank.
+
 ## Important Notes
 
 - The plugin root is: `${CLAUDE_PLUGIN_ROOT}`
