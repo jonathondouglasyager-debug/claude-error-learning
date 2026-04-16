@@ -28,6 +28,7 @@ Allowlist (override blocks):
 """
 
 import json
+import os
 import re
 import sys
 from collections import defaultdict
@@ -803,6 +804,33 @@ def main():
         print(f"Error: {mode} requires a pattern")
         print("Use --allowlist to see current allowlist")
         sys.exit(1)
+    elif "--decay" in sys.argv:
+        age = 30
+        for a in sys.argv:
+            if a.startswith("--age="):
+                try:
+                    age = int(a.split("=", 1)[1])
+                except ValueError:
+                    print(f"invalid --age value: {a}")
+                    sys.exit(2)
+        _PROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _PROOT not in sys.path:
+            sys.path.insert(0, _PROOT)
+        from lib.decay import demote_stale_patterns
+
+        learned_path = os.path.join(_PROOT, "patterns", "packs", "learned.json")
+        with open(learned_path) as f:
+            doc = json.load(f)
+        patterns = doc.get("patterns", doc if isinstance(doc, list) else [])
+        demoted = demote_stale_patterns(patterns, max_age_days=age)
+        with open(learned_path, "w") as f:
+            if isinstance(doc, list):
+                json.dump(patterns, f, indent=2)
+            else:
+                doc["patterns"] = patterns
+                json.dump(doc, f, indent=2)
+        print(f"Decay: demoted {len(demoted)} pattern(s): {demoted}")
+        sys.exit(0)
     else:
         print(f"Unknown command: {mode}")
         print("Run without arguments to see usage")
